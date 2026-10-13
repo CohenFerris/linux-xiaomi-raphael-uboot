@@ -1,0 +1,2 @@
+# qcom_rmtfs_mem 设备节点出现时触发 rmtfs.service
+ACTION=="add", KERNEL=="qcom_rmtfs_mem*", TAG+="systemd", ENV{SYSTEMD_WANTS}+="rmtfs.service"

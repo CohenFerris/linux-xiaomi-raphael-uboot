@@ -26,7 +26,7 @@ elif [[ "$SYSTEM_TYPE" == *"ubuntu-"* ]]; then
     fi
 fi
 
-DEVICE_PACKAGES="rmtfs protection-domain-mapper tqftpserv"
+DEVICE_PACKAGES="rmtfs protection-domain-mapper tqftpserv qrtr-tools libqmi-utils"
 
 if [[ "$SYSTEM_TYPE" != *"server"* ]]; then
     case "$DESKTOP_ENV" in
@@ -73,6 +73,23 @@ sed -i '/ConditionKernelVersion/d' rootdir/lib/systemd/system/pd-mapper.service 
 
 # 非 A/B 布局，qbootctl（boot slot 标记）启动即失败，屏蔽
 chroot rootdir systemctl mask qbootctl.service 2>/dev/null || true
+
+# UIM 卡槽选择（pmOS msm-modem-uim-selection），SIM 自动识别
+install -m 755 scripts/msm-modem-uim-selection rootdir/usr/libexec/
+install -m 644 scripts/msm-modem-uim-selection.service rootdir/lib/systemd/system/
+chroot rootdir systemctl enable msm-modem-uim-selection 2>/dev/null || true
+
+# rmtfs：等 qcom_rmtfs_mem 出现才触发服务，避免空转重试
+mkdir -p rootdir/etc/systemd/system/rmtfs.service.d/
+cat > rootdir/etc/systemd/system/rmtfs.service.d/qcom-rmtfs-udev.conf <<EOF
+[Unit]
+ConditionPathExists=/dev/qcom_rmtfs_mem1
+EOF
+install -m 644 scripts/99-qcom-rmtfs.rules rootdir/etc/udev/rules.d/
+
+# qcom-modem-setup（qcom-phone-utils）与 UIM 脚本重复轮询 modem，同样存在 45s 空等；
+# 上限收短到 10s，避免阻塞 ModemManager/多用户启动链
+sed -i 's/count -lt 45/count -lt 10/' rootdir/usr/bin/qcom-modem-setup 2>/dev/null || true
 
 if [ -f "$KERNEL_DEBS_DIR/alsa-xiaomi-raphael.deb" ]; then
     echo "[$(date +'%Y-%m-%d %H:%M:%S')]   └─ 安装 ALSA 配置"

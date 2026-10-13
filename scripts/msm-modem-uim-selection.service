@@ -1,0 +1,15 @@
+# UIM 卡槽选择（双卡自动识别）。冷启动时 modem 可能未就绪导致本服务失败，
+# 因此不与 ModemManager 硬关联（不用 RequiredBy），避免连带拖垮 ModemManager。
+[Unit]
+Description=MSM Modem UIM Slot Selection
+Before=ModemManager.service
+After=rmtfs.service
+After=basic.target
+Requires=rmtfs.service
+
+[Service]
+Type=notify
+ExecStart=/usr/libexec/msm-modem-uim-selection
+
+[Install]
+WantedBy=multi-user.target
